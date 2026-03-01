@@ -1,127 +1,165 @@
-// B2 — Happiness Thinning
-// Effect: 3 Thick Yellow-Green ripples shooting through a desaturating Green base.
-// Controls: Ripple Speed, Base Green Hue, Ripple Hue, Decay (Blur).
+// 124px — B2 HAPPINESS THINNING (SMOOTH WAVES EDITION)
+// Top (0-39, 40px): Smooth, flowing, intersecting yellow/orange waves.
+// Skirt (40-123, 84px): Tighter, dynamic intersecting yellow/orange waves.
+// Controls: Gauge & Toggle UI only.
 
-var N = 84
-var W = 12
-var H = 7
-var pi2 = PI * 2
+var N = 124
+var TOP_COUNT = 40   // 5 rows * 8 cols
+var SKIRT_COUNT = 84 // 7 rows * 12 cols
+var TOTAL_ROWS = 12
 
-var DEF_baseHue = 0.33      // Standard Green
-var DEF_rippleHue = 0.18    // Yellow-Green
-var DEF_speed = 0.4 
-var DEF_blur = 0.5          
-var DEF_bgLevel = 0.05
+// -------------------- Smooth Wave Defaults --------------------
+var DEF_TOP_HUE = 0.15 // Golden Yellow
+var DEF_BOT_HUE = 0.04 // Deep Orange
+var DEF_SPEED   = 0.5  
 
-var baseHue = DEF_baseHue
-var rippleHue = DEF_rippleHue
-var speedCtl = DEF_speed
-var blurCtl = DEF_blur
-var bgLevel = DEF_bgLevel
-var reverse = 0
+var topHue = DEF_TOP_HUE
+var botHue = DEF_BOT_HUE
+var hueOffset = 0
+var tMove = 0
 
-var STEP_HUE = 0.01
-var STEP_SPEED = 0.05
-var STEP_BLUR = 0.05
+// -------------------- UI Controls --------------------
+var t_hueUp=0, l_hueUp=0
+var t_hueDown=0, l_hueDown=0
+var t_reset=0, l_reset=0
 
-var dir_speed = 1, dir_blur = 1
+// Toggles: Flip to trigger
+export function toggleHueUp(v) { t_hueUp = v }
+export function toggleHueDown(v) { t_hueDown = v }
+export function toggleReset(v) { t_reset = v }
 
-function clamp01(x){ return x < 0 ? 0 : (x > 1 ? 1 : x) }
-function frac(x){ return x - floor(x) }
-function mix(a,b,t){ return a + (b-a)*t }
+// Gauges: Visual feedback for the current palette
+export function gaugeYellowHue() { return topHue }
+export function gaugeOrangeHue() { return botHue }
+export function gaugeEffectSpeed() { return DEF_SPEED }
 
-// --- Mapping: Physical Index -> XY Coordinates ---
-var pixelX = array(N)
-var pixelY = array(N)
-for (var i = 0; i < N; i++) {
-  var c = floor(i / H)
-  var r = i % H
-  if (c % 2 == 1) r = (H - 1) - r
-  pixelX[i] = c / (W - 1)
-  pixelY[i] = r / (H - 1)
+// -------------------- Internal Mapping --------------------
+var pixelT = array(N), pixelY = array(N)
+
+// Build coordinates specifically for the 40/84 split
+function buildTY() {
+  for (var i = 0; i < N; i++) {
+    if (i < TOP_COUNT) {
+      // Top Mapping (8 columns, 5 rows) [Indices 0-39]
+      var r = floor(i / 8)
+      var c = i % 8
+      pixelT[i] = c / 8
+      pixelY[i] = r / TOTAL_ROWS
+    } else {
+      // Skirt Mapping (12 columns, 7 rows) [Indices 40-123]
+      var i2 = i - TOP_COUNT
+      var r = floor(i2 / 12) + 5 // Offset Y by the 5 top rows
+      var c = i2 % 12
+      pixelT[i] = c / 12
+      pixelY[i] = r / TOTAL_ROWS
+    }
+  }
 }
+buildTY()
 
-// ---------- Syncable Toggles & Gauges ----------
-var t_baseUp=0, t_baseDown=0, t_ripUp=0, t_ripDown=0, t_spdUp=0, t_spdDown=0, t_blurUp=0, t_blurDown=0, t_reverse=0, t_reset=0
-var l_baseUp=0, l_baseDown=0, l_ripUp=0, l_ripDown=0, l_spdUp=0, l_spdDown=0, l_blurUp=0, l_blurDown=0, l_reverse=0, l_reset=0
+// -------------------- Helpers --------------------
+function frac(x) { return x - floor(x) }
+function mix(a, b, t) { return a + (b - a) * t }
+function clamp(val, min, max) { return val < min ? min : (val > max ? max : val) }
 
-function onFlip(v, last){ return (v != last) }
-
-export function toggleBaseGreenUp(v){ t_baseUp = v }
-export function toggleBaseGreenDown(v){ t_baseDown = v }
-export function toggleRippleHueUp(v){ t_ripUp = v }
-export function toggleRippleHueDown(v){ t_ripDown = v }
-export function toggleSpeedUp(v){ t_spdUp = v }
-export function toggleSpeedDown(v){ t_spdDown = v }
-export function toggleDecayUp(v){ t_blurUp = v }        
-export function toggleDecayDown(v){ t_blurDown = v }    
-export function toggleReverse(v){ t_reverse = v }
-export function toggleResetDefaults(v){ t_reset = v }
-
-export function gaugeBaseGreen(){ return frac(baseHue) } 
-export function gaugeRippleHue(){ return frac(rippleHue) } 
-export function gaugeSpeed(){ return clamp01(speedCtl) }
-export function gaugeDecay(){ return clamp01(blurCtl) }
-
-function bounce(val, step, lo, hi, dir, sign){
-  val += sign * step * dir
-  if(val > hi){ val = hi; dir = -1 }
-  if(val < lo){ val = lo; dir =  1 }
-  return [val, dir]
-}
-
+// -------------------- Render Loop --------------------
 export function beforeRender(delta) {
-  if(onFlip(t_baseUp, l_baseUp)){ l_baseUp=t_baseUp; baseHue = frac(baseHue + STEP_HUE) }
-  if(onFlip(t_baseDown, l_baseDown)){ l_baseDown=t_baseDown; baseHue = frac(baseHue - STEP_HUE) }
-  if(onFlip(t_ripUp, l_ripUp)){ l_ripUp=t_ripUp; rippleHue = frac(rippleHue + STEP_HUE) }
-  if(onFlip(t_ripDown, l_ripDown)){ l_ripDown=t_ripDown; rippleHue = frac(rippleHue - STEP_HUE) }
-  
-  if(onFlip(t_spdUp, l_spdUp)){ l_spdUp=t_spdUp; var r = bounce(speedCtl, STEP_SPEED, 0, 1, dir_speed, +1); speedCtl=r[0]; dir_speed=r[1] }
-  if(onFlip(t_spdDown, l_spdDown)){ l_spdDown=t_spdDown; var r = bounce(speedCtl, STEP_SPEED, 0, 1, dir_speed, -1); speedCtl=r[0]; dir_speed=r[1] }
-  
-  if(onFlip(t_blurUp, l_blurUp)){ l_blurUp=t_blurUp; var r = bounce(blurCtl, STEP_BLUR, 0, 1, dir_blur, +1); blurCtl=r[0]; dir_blur=r[1] }
-  if(onFlip(t_blurDown, l_blurDown)){ l_blurDown=t_blurDown; var r = bounce(blurCtl, STEP_BLUR, 0, 1, dir_blur, -1); blurCtl=r[0]; dir_blur=r[1] }
-  
-  if(onFlip(t_reverse, l_reverse)){ l_reverse=t_reverse; reverse = 1 - reverse }
-  
-  if(onFlip(t_reset, l_reset)){
-    l_reset=t_reset; baseHue = DEF_baseHue; rippleHue = DEF_rippleHue; speedCtl = DEF_speed
-    blurCtl = DEF_blur; bgLevel = DEF_bgLevel; reverse = 0; dir_speed = 1; dir_blur = 1
+  // Logic for Hue Increment Toggles (Shifts both palettes up or down smoothly)
+  if (t_hueUp != l_hueUp) {
+    l_hueUp = t_hueUp
+    hueOffset = frac(hueOffset + 0.1) // Bump hue up by 10%
+  }
+  if (t_hueDown != l_hueDown) {
+    l_hueDown = t_hueDown
+    hueOffset = frac(hueOffset - 0.1 + 1) // Bump hue down by 10%
   }
 
-  // Time base for the 3 ripples
-  t1 = time(0.15 * speedCtl)
+  // Logic for Reset Toggle
+  if (t_reset != l_reset) {
+    l_reset = t_reset
+    hueOffset = 0
+  }
+
+  // Calculate current hues based on steps
+  topHue = frac(DEF_TOP_HUE + hueOffset)
+  botHue = frac(DEF_BOT_HUE + hueOffset)
+
+  // Global time progressions - sped up slightly to suit the sine waves
+  tMove += (delta * 0.002 * DEF_SPEED)
 }
 
 export function render(index) {
-  if (index >= N) { rgb(0,0,0); return }
+  if (index >= N) return
 
-  var x = pixelX[index]
+  var th = pixelT[index]
   var y = pixelY[index]
+  
+  // Convert angle (0-1) to Radians (0-6.28) for smooth sine math around the cylinder
+  var thRad = th * 6.28318
+  
+  // Fixed logic: Indices 0-39 are Top, 40-123 are Skirt
+  var isTop = (index < TOP_COUNT)
+  
+  var h, s, bri, wYellow, wOrange
+  
+  if (isTop) {
+    // --- TOP (CAP): Smooth, wide undulating waves ---
+    // Wobble creates the "wavy" up-and-down rings
+    var wobble = sin(thRad * 1) * 1.0 
+    
+    // Yellow wave moves UP (-tMove), Orange wave moves DOWN (+tMove)
+    // They tilt in opposite directions (+/- wobble) so they visibly cross
+    wYellow = (sin(y * 18 + wobble - tMove * 3.0) + 1) / 2
+    wOrange = (sin(y * 18 - wobble + tMove * 3.5) + 1) / 2
+    
+    // Smooth power curve for soft glowing bands
+    wYellow = pow(wYellow, 1.5)
+    wOrange = pow(wOrange, 1.5)
+    
+  } else {
+    // --- BOTTOM (SKIRT): Tighter, more dynamic crossing waves ---
+    var wobble = sin(thRad * 2) * 1.2 // 2 lobes for a more complex weave
+    
+    wYellow = (sin(y * 25 + wobble - tMove * 4.0) + 1) / 2
+    wOrange = (sin(y * 25 - wobble + tMove * 4.5) + 1) / 2
+    
+    wYellow = pow(wYellow, 1.5)
+    wOrange = pow(wOrange, 1.5)
+  }
 
-  // Create 3 thick ripples using a triangle wave multiplied by 3
-  // The y*0.3 adds the "shooting star" diagonal tilt
-  var rippleSource = frac((x * 1) + (reverse ? t1 : -t1) - (y * 0.3))
+  // --- BLENDING BACKGROUND WAVES ---
+  // Determine which background wave is currently stronger at this pixel
+  var ratio = wOrange / (wYellow + wOrange + 0.0001)
   
-  // triangle(3 * rippleSource) creates exactly 3 peaks across the width
-  var spark = triangle(frac(3 * rippleSource))
+  // Blend the base yellow and orange smoothly based on the ratio
+  var baseMix = mix(DEF_TOP_HUE, DEF_BOT_HUE, ratio)
+  h = frac(baseMix + hueOffset) 
   
-  // Decay/Thickness math
-  // Low blur = thin lines, High blur = thick ripples
-  var thickness = mix(12, 2, blurCtl)
-  var v = pow(spark, thickness)
+  // Keep it richly saturated, but slightly drop saturation where the waves cross for a brighter "hotspot"
+  s = mix(1.0, 0.7, wYellow * wOrange)
+  
+  // Additive brightness: waves combine to create a bright glow where they intersect
+  bri = (wYellow + wOrange) * 0.55 + 0.1
 
-  // Desaturating Green Story
-  // The background green (baseHue) gets grey-ish as it goes up the tree
-  var desatBase = mix(0.9, 0.4, y)
+  // --- DUAL-COLOR BOUNCING SCANNER WAVE ---
+  // Calculate a focal point that sweeps up and down smoothly between 0 and 1
+  var yFocus = (sin(tMove * 1.5) + 1) / 2
   
-  // Coloring
-  var h = mix(baseHue, rippleHue, v)
-  var s = mix(desatBase, 0.9, v) // Ripples bring back saturation
+  // Measure the distance of the current pixel's Y from the focal point
+  var dist = abs(y - yFocus)
   
-  // Skirt fade: The top rows decay faster than the bottom rows
-  var bri = mix(bgLevel, 1, v)
-  bri *= mix(1, 0.6, y) 
+  // Create a soft band of light. Max() ensures it doesn't drop below 0. 
+  // Multiplying by 4.0 makes the wave narrower (it covers about 1/4 of the height).
+  var wScanner = max(0, 1.0 - dist * 4.0)
+  wScanner = pow(wScanner, 1.5) // Soften the leading/trailing edges of the scanner wave
+  
+  // Choose scanner color based on section: Light Blue (0.55) for Top, Pink (0.88) for Skirt
+  var scannerHue = isTop ? 0.55 : 0.88
+  
+  // Blend the scanner wave over the existing colors
+  h = mix(h, scannerHue, wScanner) 
+  s = mix(s, 0.4, wScanner)        // Desaturate slightly so the color is bright and neon
+  bri = bri + wScanner * 1.2       // Additive brightness override for a strong glowing effect
 
-  hsv(h, s, bri)
+  hsv(h, clamp(s, 0, 1), clamp(bri, 0, 1))
 }

@@ -1,119 +1,130 @@
-// A4 — Multi-Strand Horizontal Helix Drop Chase (12x7 VERTICAL SERPENTINE)
-// Mapping: Physically wired in snaked columns (0, 13, 14, 27...)
-// Effect: Horizontal spiral that wraps 12px then drops 1 row.
+// A4/A5 — Kinetic Nova & Power Streams (Stage Overdrive)
+// Palette: Customizable Trail Hue, Light Yellow Sparks, Light Blue Wash
 
-var N = 84
-var W = 12
-var H = 7
+var pixelLimit = 124
+var bgLevel = 0.12          
+var DEF_accentHue = 0.12   
 
-var DEF_accentHue = 0.42 
-var DEF_speed = 0.4 
-var DEF_density = 0.5   // Renamed from strands
-var DEF_blur = 0.4      // Renamed from tail
-var DEF_bgLevel = 0.04
+// Performance
+var dropSpeed = 0.8        
+var streamSpeed = 1.25     
+var numCols = 12            
 
 var accentHue = DEF_accentHue
-var speedCtl = DEF_speed
-var densityCtl = DEF_density
-var blurCtl = DEF_blur
-var bgLevel = DEF_bgLevel
-var reverse = 0
-
-var STEP_HUE = 0.01
-var STEP_SPEED = 0.05
-var STEP_DENSITY = 0.05
-var STEP_BLUR = 0.05
-
-var dir_speed = 1, dir_density = 1, dir_blur = 1
+var hyperDrive = 0         
+var a5Density = 0.5        
+var washTimer = 0          
+var STEP_HUE = 0.02        
 
 function clamp01(x){ return x < 0 ? 0 : (x > 1 ? 1 : x) }
 function frac(x){ return x - floor(x) }
 function mix(a,b,t){ return a + (b-a)*t }
-
-// --- Mapping: Physical Index -> Virtual Row-by-Row Path ---
-function getPathPos(i) {
-  var c = floor(i / H)
-  var r = i % H
-  if (c % 2 == 1) r = (H - 1) - r 
-  return (r * W + c) / N 
-}
+function hash(n){ return frac(sin(n*12.9898)*43758.5453) }
 
 // ---------- Syncable Toggles & Gauges ----------
-var t_hueUp=0, t_hueDown=0, t_spdUp=0, t_spdDown=0, t_denUp=0, t_denDown=0, t_blurUp=0, t_blurDown=0, t_reverse=0, t_reset=0
-var l_hueUp=0, l_hueDown=0, l_spdUp=0, l_spdDown=0, l_denUp=0, l_denDown=0, l_blurUp=0, l_blurDown=0, l_reverse=0, l_reset=0
+var t_a5 = 0, t_hueUp = 0, t_hueDown = 0, t_reset = 0
+var l_a5 = 0, l_hueUp = 0, l_hueDown = 0, l_reset = 0
+
+export function toggleA5(v){ t_a5 = v } 
+export function toggleAccentHueUp(v){ t_hueUp = v }
+export function toggleAccentHueDown(v){ t_hueDown = v }
+export function toggleResetDefaults(v){ t_reset = v }
+
+export function gaugeHyperDrive(){ return hyperDrive }
+export function gaugeAccentHue(){ return frac(accentHue) }
 
 function onFlip(v, last){ return (v != last) }
 
-export function toggleAccentHueUp(v){ t_hueUp = v }
-export function toggleAccentHueDown(v){ t_hueDown = v }
-export function toggleSpeedUp(v){ t_spdUp = v }
-export function toggleSpeedDown(v){ t_spdDown = v }
-export function toggleDensityUp(v){ t_denUp = v }      // Renamed
-export function toggleDensityDown(v){ t_denDown = v }  // Renamed
-export function toggleBlurUp(v){ t_blurUp = v }        // Renamed
-export function toggleBlurDown(v){ t_blurDown = v }    // Renamed
-export function toggleReverse(v){ t_reverse = v }
-export function toggleResetDefaults(v){ t_reset = v }
+export function beforeRender(delta) {
+  if(onFlip(t_a5, l_a5)){ 
+    l_a5 = t_a5; 
+    hyperDrive = 1 - hyperDrive;
+    if (hyperDrive) washTimer = 2.0; 
+  }
+  
+  if(onFlip(t_hueUp, l_hueUp)){ l_hueUp = t_hueUp; accentHue = frac(accentHue + STEP_HUE) }
+  if(onFlip(t_hueDown, l_hueDown)){ l_hueDown = t_hueDown; accentHue = frac(accentHue - STEP_HUE) }
 
-export function gaugeAccentHue(){ return frac(accentHue) }
-export function gaugeSpeed(){ return clamp01(speedCtl) }
-export function gaugeDensity(){ return clamp01(densityCtl) } // Renamed
-export function gaugeBlur(){ return clamp01(blurCtl) }       // Renamed
-
-function bounce(val, step, lo, hi, dir, sign){
-  val += sign * step * dir
-  if(val > hi){ val = hi; dir = -1 }
-  if(val < lo){ val = lo; dir =  1 }
-  return [val, dir]
-}
-
-export function beforeRender(delta){
-  if(onFlip(t_hueUp, l_hueUp)){ l_hueUp=t_hueUp; accentHue = frac(accentHue + STEP_HUE) }
-  if(onFlip(t_hueDown, l_hueDown)){ l_hueDown=t_hueDown; accentHue = frac(accentHue - STEP_HUE) }
-  
-  if(onFlip(t_spdUp, l_spdUp)){ l_spdUp=t_spdUp; var r = bounce(speedCtl, STEP_SPEED, 0, 1, dir_speed, +1); speedCtl=r[0]; dir_speed=r[1] }
-  if(onFlip(t_spdDown, l_spdDown)){ l_spdDown=t_spdDown; var r = bounce(speedCtl, STEP_SPEED, 0, 1, dir_speed, -1); speedCtl=r[0]; dir_speed=r[1] }
-  
-  if(onFlip(t_denUp, l_denUp)){ l_denUp=t_denUp; var r = bounce(densityCtl, STEP_DENSITY, 0, 1, dir_density, +1); densityCtl=r[0]; dir_density=r[1] }
-  if(onFlip(t_denDown, l_denDown)){ l_denDown=t_denDown; var r = bounce(densityCtl, STEP_DENSITY, 0, 1, dir_density, -1); densityCtl=r[0]; dir_density=r[1] }
-  
-  if(onFlip(t_blurUp, l_blurUp)){ l_blurUp=t_blurUp; var r = bounce(blurCtl, STEP_BLUR, 0, 1, dir_blur, +1); blurCtl=r[0]; dir_blur=r[1] }
-  if(onFlip(t_blurDown, l_blurDown)){ l_blurDown=t_blurDown; var r = bounce(blurCtl, STEP_BLUR, 0, 1, dir_blur, -1); blurCtl=r[0]; dir_blur=r[1] }
-  
-  if(onFlip(t_reverse, l_reverse)){ l_reverse=t_reverse; reverse = 1 - reverse }
-  
-  if(onFlip(t_reset, l_reset)){
-    l_reset=t_reset; accentHue = DEF_accentHue; speedCtl = DEF_speed; densityCtl = DEF_density
-    blurCtl = DEF_blur; bgLevel = DEF_bgLevel; reverse = 0; dir_speed = 1; dir_density = 1; dir_blur = 1
+  if (washTimer > 0) {
+    washTimer -= delta / 2000; 
+    if (washTimer < 0) washTimer = 0;
   }
 
-  t1 = time(0.1 / (0.05 + speedCtl * 0.5))
+  if(onFlip(t_reset, l_reset)){ 
+    l_reset = t_reset; hyperDrive = 0; accentHue = DEF_accentHue; washTimer = 0 
+  }
+
+  t_drop = time(0.1 / dropSpeed)
+  t_stream = time(0.08 / streamSpeed)
+  t_flicker = time(0.0005) 
 }
 
-export function render(index) {
-  if (index >= N) { rgb(0,0,0); return }
+export function render3D(index, x, y, z) {
+  if (index >= pixelLimit) { rgb(0,0,0); return }
 
-  var p = getPathPos(index)
-  // Density determines number of strands
-  var nStrands = 1 + floor(densityCtl * H)
-  var spacing = 1 / H 
-  // Blur determines tail length
-  var tailLen = 0.05 + (blurCtl * 0.6)
+  var yNorm = (y + 1.0) / 3.5
+  var anglePos = (atan2(z, x) / PI2) + 0.5 
   
   var vSum = 0
-  for (var s = 0; s < nStrands; s++) {
-    var head = frac(reverse ? (t1 + s * spacing) : (1 - (t1 + s * spacing)))
-    var d = p - head
+  var sparkSum = 0
+
+  // 1. GENERATE EFFECT
+  if (!hyperDrive) {
+    // --- MODE A4: HELIX DROP ---
+    var p = yNorm + (anglePos * 0.15)
+    var nStrands = 3
+    for (var s = 0; s < nStrands; s++) {
+      var head = frac(1.0 - (t_drop + s/nStrands))
+      var d = head - p
+      if (d < 0) d += 1 
+      if (d < 0.3) {
+        vSum += pow(1 - (d/0.3), 1.5)
+        if (d < 0.05) sparkSum += (1 - (d/0.05))
+      }
+    }
+  } else if (washTimer <= 0.6) { 
+    // --- MODE A5: HIGH-SPEED GLITCH STREAMS ---
+    var dynamicCols = 4 + floor(a5Density * 20)
+    var colID = floor(anglePos * dynamicCols)
+    var head = frac(t_stream + (colID * 0.618))
+    var d = head - yNorm
     if (d < 0) d += 1
-    
-    if (d < tailLen) {
-      var pulse = 1 - (d / tailLen)
-      vSum += pulse * pulse
+    if (d < 0.4) {
+      var glitch = 0.4 + 0.6 * hash(index + t_flicker)
+      vSum += pow(1 - (d/0.4), 2) * glitch
+      if (d < 0.08) sparkSum += (1 - (d/0.08))
     }
   }
 
+  // 2. COLOR MIXING
   var v = clamp01(vSum)
-  var bgHue = 0.66
-  var finalHue = mix(bgHue, accentHue, v)
-  hsv(frac(finalHue), 0.98, mix(bgLevel, 1, v))
+  var spark = clamp01(sparkSum)
+  var wash = pow(washTimer / 2, 1.5)
+  
+  var bgHue = 0.58 
+  var sparkHue = 0.14 
+  
+  // DUAL-MODE ACCENT LOGIC
+  // A4 uses a high threshold (0.12) for less accent. 
+  // A5 uses a low threshold (0.04) so the accent is way more prominent.
+  var hueThreshold = hyperDrive ? 0.04 : 0.12
+  var finalHue = (v > hueThreshold) ? accentHue : bgHue
+  
+  finalHue = mix(finalHue, sparkHue, spark)
+  
+  var finalSat = mix(0.75, 1.0, v)
+  finalSat = mix(finalSat, 0.25, spark)
+  
+  var finalVal = mix(bgLevel, 1, v + (spark * 1.5))
+  
+  // 3. MORE SPARKLY WASH TRANSITION
+  if (wash > 0) {
+    // Sparkle Density increased: Threshold dropped from 0.5 to 0.3
+    var sparkle = hash(index + t_flicker) > 0.3 ? 1 : 0
+    // Sparks are now 2x as bright for extra "crunch"
+    finalVal = clamp01(finalVal + wash + (sparkle * wash * 2))
+    finalSat = mix(finalSat, 0.4, wash) 
+  }
+  
+  hsv(frac(finalHue), finalSat, finalVal)
 }

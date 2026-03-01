@@ -1,6 +1,6 @@
 // C2 — The Whimsical Vault
 // Node 0: Midnight Navy & Deep Gold | Node 1: Dusty Pink & Steel Blue
-var N = 84
+var N = 124
 var PI2 = PI * 2
 
 // ===== Default States =====
