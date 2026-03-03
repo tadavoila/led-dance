@@ -1,18 +1,18 @@
-// D4_D5: THERMAL CRESCENDO (124px Master Merge)
+// D4_D5: TURBO THERMAL CRESCENDO (124px)
 var N = 124
 var PI2 = PI * 2
 
-// ===== Default Constants =====
-var DEF_d4Speed = 0.35, DEF_d4Width = 0.35
-var DEF_d4H1 = 0.66, DEF_d4Int = 0.8
-var DEF_d5Speed = 0.12, DEF_d5Turb = 0.8, DEF_d5Hue = 0.98, DEF_d5Int = 1.3
+// ===== Fixed Performance Constants =====
+var d4Speed = 0.35, d4Width = 0.35
+var d5Speed = 0.12, d5Hue = 0.98
+var d5Int = 2.0         // HARD-CODED HIGH INTENSITY
 var FADE_SPEED = 0.001 
 
 // ===== State Variables =====
 var isSunrise = 0 
 var transitionAmt = 0 
-var d4Speed = DEF_d4Speed, d4Width = DEF_d4Width, d4Hue = DEF_d4H1, d4Int = DEF_d4Int
-var d5Speed = DEF_d5Speed, d5Turb = DEF_d5Turb, d5Hue = DEF_d5Hue, d5Int = DEF_d5Int
+var turbo = 0.5         // Turbo Gauge (0 to 1)
+var d4Hue = 0.66, d4Int = 0.8
 
 var pulseAccum = 0, t_convection = 0
 
@@ -51,26 +51,23 @@ buildMapping()
 function getWave(v) { return (sin(v * PI2) + 1) / 2 }
 
 // ---------- UI CONTROLS & GAUGES ----------
-var t_d4hU=0, t_d4hD=0, t_d4iU=0, t_d4iD=0
-var t_d5sU=0, t_d5sD=0, t_d5tU=0, t_d5tD=0, t_d5hU=0, t_d5hD=0, t_d5iU=0, t_d5iD=0, t_reset=0
-var l_d4hU=0, l_d4hD=0, l_d4iU=0, l_d4iD=0
-var l_d5sU=0, l_d5sD=0, l_d5tU=0, l_d5tD=0, l_d5hU=0, l_d5hD=0, l_d5iU=0, l_d5iD=0, l_reset=0
+var t_d4hU=0, t_d4hD=0, t_tuU=0, t_tuD=0, t_h1U=0, t_h1D=0, t_reset=0
+var l_d4hU=0, l_d4hD=0, l_tuU=0, l_tuD=0, l_h1U=0, l_h1D=0, l_reset=0
 
 export function toggleSunrise(v) { isSunrise = v }
-export function toggleHueUp(v) { t_d4hU=v }
-export function toggleHueDn(v) { t_d4hD=v }
-export function toggleIntUp(v) { t_d4iU=v }
-export function toggleIntDn(v) { t_d4iD=v }
+export function toggleD4HueUp(v) { t_d4hU=v }
+export function toggleD4HueDn(v) { t_d4hD=v }
 
-export function toggleD5HueUp(v) { t_d5hU=v }
-export function toggleD5HueDn(v) { t_d5hD=v }
-export function toggleD5IntUp(v) { t_d5iU=v }
-export function toggleD5IntDn(v) { t_d5iD=v }
+export function toggleTurboUp(v) { t_tuU=v } // Controls wave thickness
+export function toggleTurboDn(v) { t_tuD=v }
+
+export function toggleD5HueUp(v) { t_h1U=v }
+export function toggleD5HueDn(v) { t_h1D=v }
 export function toggleReset(v) { t_reset = v }
 
 export function gaugeD4_Hue() { return d4Hue }
+export function gaugeTurbo() { return turbo }
 export function gaugeD5_Hue() { return d5Hue }
-export function gaugeD5_Int() { return d5Int / 2 }
 export function gaugeTransition() { return transitionAmt }
 
 function onFlip(v, last) { return (v > 0.5 && last <= 0.5) }
@@ -81,7 +78,7 @@ export function beforeRender(delta) {
   pulseAccum = frac(pulseAccum + (delta/1000 * d4Speed))
   t_convection = time(d5Speed)
 
-  // --- CROSS-FADE LOGIC ---
+  // --- AUTOMATED CROSS-FADE ---
   if (isSunrise && transitionAmt < 1) {
     transitionAmt = clamp(transitionAmt + (delta * FADE_SPEED), 0, 1)
   } else if (!isSunrise && transitionAmt > 0) {
@@ -91,58 +88,53 @@ export function beforeRender(delta) {
   // UI Processing
   if(onFlip(t_d4hU, l_d4hU)) d4Hue = frac(d4Hue + 0.05)
   if(onFlip(t_d4hD, l_d4hD)) d4Hue = frac(d4Hue - 0.05)
-  if(onFlip(t_d4iU, l_d4iU)) d4Int = clamp(d4Int + 0.1, 0, 1)
-  if(onFlip(t_d4iD, l_d4iD)) d4Int = clamp(d4Int - 0.1, 0, 1)
   
-  if(onFlip(t_d5sU, l_d5sU)) d5Speed=clamp(d5Speed-0.02, 0.02, 1)
-  if(onFlip(t_d5sD, l_d5sD)) d5Speed=clamp(d5Speed+0.02, 0.02, 1)
-  if(onFlip(t_d5tU, l_d5tU)) d5Turb=clamp(d5Turb+0.1, 0.1, 3)
-  if(onFlip(t_d5tD, l_d5tD)) d5Turb=clamp(d5Turb-0.1, 0.1, 3)
-  if(onFlip(t_d5hU, l_d5hU)) d5Hue=frac(d5Hue+0.05)
-  if(onFlip(t_d5hD, l_d5hD)) d5Hue=frac(d5Hue-0.05)
-  if(onFlip(t_d5iU, l_d5iU)) d5Int=clamp(d5Int+0.1, 0.1, 2)
-  if(onFlip(t_d5iD, l_d5iD)) d5Int=clamp(d5Int - 0.1, 0.1, 2)
+  if(onFlip(t_tuU, l_tuU)) turbo = clamp(turbo + 0.1, 0, 1)
+  if(onFlip(t_tuD, l_tuD)) turbo = clamp(turbo - 0.1, 0, 1)
+  
+  if(onFlip(t_h1U, l_h1U)) d5Hue = frac(d5Hue + 0.05)
+  if(onFlip(t_h1D, l_h1D)) d5Hue = frac(d5Hue - 0.05)
 
-  if(onFlip(t_reset, l_reset)){
-    d4Hue=DEF_d4H1; d4Int=DEF_d4Int;
-    d5Speed=DEF_d5Speed; d5Turb=DEF_d5Turb; d5Hue=DEF_d5Hue; d5Int=DEF_d5Int; transitionAmt = 0;
-  }
+  if(onFlip(t_reset, l_reset)){ d4Hue=0.66; d5Hue=0.98; turbo=0.5; transitionAmt = 0; }
   
-  l_d4hU=t_d4hU; l_d4hD=t_d4hD; l_d4iU=t_d4iU; l_d4iD=t_d4iD
-  l_d5sU=t_d5sU; l_d5sD=t_d5sD; l_d5tU=t_d5tU; l_d5tD=t_d5tD; l_d5hU=t_d5hU; l_d5hD=t_d5hD; l_d5iU=t_d5iU; l_d5iD=t_d5iD
-  l_reset=t_reset
+  l_d4hU=t_d4hU; l_d4hD=t_d4hD; l_tuU=t_tuU; l_tuD=t_tuD; l_h1U=t_h1U; l_h1D=t_h1D; l_reset=t_reset
 }
 
 export function render(index) {
   var r = coordsY[index]; var c = coordsX[index]
   
-  // 1. D4 Ripple (Fixed aggressive speed/width)
+  // 1. D4 Ripple (Base layer)
   var dx = (c - 0.5), dy = (r - 0.5)
   var dist = sqrt(dx*dx + dy*dy) 
   var waveVal = getWave(dist * (1/d4Width) - pulseAccum)
   var h4, v4
   if (index % 2 == 0) {
-    h4 = d4Hue; v4 = pow(waveVal, 3) * d4Int
+    h4 = d4Hue; v4 = pow(waveVal, 2.5) * d4Int
   } else {
-    h4 = d4Hue + 0.5; v4 = pow(1 - waveVal, 3) * (d4Int * 0.8)
+    h4 = d4Hue + 0.5; v4 = pow(1 - waveVal, 2.5) * (d4Int * 0.8)
   }
 
-  // 2. D5 Sunrise Convection (Lead-in to E1)
-  var swirl = sin(t_convection * PI2 + (c * 2)) * d5Turb
-  var rising = getWave(t_convection - r + (swirl * 0.2))
+  // 2. D5 Sunrise (TURBO LOGIC)
+  var swirl = sin(t_convection * PI2 + (c * 2)) * 0.6
+  var risingRaw = getWave(t_convection - r + (swirl * 0.2))
   
-  var h5 = mix(0.98, 0.60, r) // Pink Top to Blue Skirt
-  var s5 = 0.8 // FIXED AT 0.8 as requested
-  var v5 = pow(rising, 1.2) * d5Int 
+  // TURBO: Plateaus the wave so more LEDs stay on.
+  // We multiply the wave and clamp it. High Turbo = Thick bars of light.
+  var risingThick = clamp(risingRaw * (1.1 + turbo * 2.0), 0, 1)
+  
+  var h5 = mix(d5Hue, 0.60, r) 
+  var s5 = 0.8 
+  
+  // Brightness: Includes a base floor so LEDs never go fully black
+  var v5 = (0.2 + risingThick * 0.8) * d5Int 
 
-  // Light Red Sunrise Peaks (instead of white)
-  if (rising > 0.75) { 
-    h5 = 1.0; // PURE RED HUE
-    s5 = 0.8; // KEEPING SATURATION AT 0.8
-    v5 += 0.4; 
+  // Aggressive Red Flare
+  if (risingRaw > (0.8 - turbo * 0.2)) { 
+    h5 = 1.0;     // Pure Red
+    v5 += 0.5; 
   }
 
-  // 3. Blend
+  // 3. Master Blend
   var h = h4 + (h5 - h4) * transitionAmt
   var s = 0.95 + (s5 - 0.95) * transitionAmt
   var v = v4 + (v5 - v4) * transitionAmt
