@@ -1,110 +1,132 @@
-// C3 — The Gravitational Vortex
-// Pure Spiral Motion | No Stars | 84 LEDs
-var N = 84
+// C3 — FLAMBOYANT RAINBOW VORTEX (124px)
+// Adapted from C2 architecture with C3 Spiral Math
+var N = 124
 var PI2 = PI * 2
 
-// ===== Default States =====
-var DEF_h0 = 0.66   // Midnight Navy
-var DEF_h1 = 0.94   // Neon Pink
-var DEF_speed = 0.3
-var DEF_depth = 1.0
-
-var hue0 = DEF_h0
-var hue1 = DEF_h1
+// ===== Default Settings =====
+var DEF_h0 = 0.66, DEF_h1 = 0.94 // Background Hues
+var DEF_speed = 0.15, DEF_crazy = 0.4
+var hue0 = DEF_h0, hue1 = DEF_h1
 var pulseSpeed = DEF_speed
-var pulseDepth = DEF_depth
+var craziness = DEF_crazy
+var pulseWidth = 3 // Width of the rainbow arms
 
-// Coordinate Map for 12x7 Grid (Architecture)
+// ---------- Mapping (124 LEDs) ----------
 var coordsX = array(N), coordsY = array(N)
-var rowData = [
-  [ 0, 13, 14, 27, 28, 41, 42, 55, 56, 69, 70, 83],
-  [ 1, 12, 15, 26, 29, 40, 43, 54, 57, 68, 71, 82],
-  [ 2, 11, 16, 25, 30, 39, 44, 53, 58, 67, 72, 81],
-  [ 3, 10, 17, 24, 31, 38, 45, 52, 59, 66, 73, 80],
-  [ 4,  9, 18, 23, 32, 37, 46, 51, 60, 65, 74, 79],
-  [ 5,  8, 19, 22, 33, 36, 47, 50, 61, 64, 75, 78],
-  [ 6,  7, 20, 21, 34, 35, 48, 49, 62, 63, 76, 77]
+var isTopSection = array(N)
+
+var LED_MAP = [
+  // --- TOP (5 rows, 8 cols) ---
+  [ 0,  9, 10, 19, 20, 29, 30, 39],
+  [ 1,  8, 11, 18, 21, 28, 31, 38],
+  [ 2,  7, 12, 17, 22, 27, 32, 37],
+  [ 3,  6, 13, 16, 23, 26, 33, 36],
+  [ 4,  5, 14, 15, 24, 25, 34, 35],
+
+  // --- SKIRT (7 rows, 12 cols) ---
+  [46, 47, 60, 61, 74, 75, 88, 89,102,103,116,117],
+  [45, 48, 59, 62, 73, 76, 87, 90,101,104,115,118],
+  [44, 49, 58, 63, 72, 77, 86, 91,100,105,114,119],
+  [43, 50, 57, 64, 71, 78, 85, 92, 99,106,113,120],
+  [42, 51, 56, 65, 70, 79, 84, 93, 98,107,112,121],
+  [41, 52, 55, 66, 69, 80, 83, 94, 97,108,111,122],
+  [40, 53, 54, 67, 68, 81, 82, 95, 96,109,110,123],
 ]
 
-for (var r = 0; r < 7; r++) {
-  for (var c = 0; c < 12; c++) {
-    var p = rowData[r][c]; if (p < N) { coordsX[p] = c; coordsY[p] = r }
+
+function buildMapping() {
+  for (var r = 0; r < 12; r++) {
+    var rowArr = LED_MAP[r]
+    var cols = (r < 5) ? 8 : 12
+    for (var c = 0; c < cols; c++) {
+      var idx = rowArr[c]
+      if (idx < N) {
+        coordsX[idx] = (c - (cols/2)) / (cols/2) // Normalized X [-1, 1]
+        coordsY[idx] = (r - 5.5) / 5.5           // Normalized Y [-1, 1]
+        isTopSection[idx] = (r < 5)
+      }
+    }
   }
 }
+buildMapping()
 
 // ---------- UI CONTROLS & GAUGES ----------
-var t_h0Up=0, t_h0Dn=0, t_h1Up=0, t_h1Dn=0
-var t_spUp=0, t_spDn=0, t_deUp=0, t_deDn=0, t_reset=0
-var l_h0Up=0, l_h0Dn=0, l_h1Up=0, l_h1Dn=0
-var l_spUp=0, l_spDn=0, l_deUp=0, l_deDn=0, l_reset=0
+var t_h0U=0, t_h0D=0, t_h1U=0, t_h1D=0
+var t_spU=0, t_spD=0, t_czU=0, t_czD=0, t_reset=0
+var l_h0U=0, l_h0D=0, l_h1U=0, l_h1D=0
+var l_spU=0, l_spD=0, l_czU=0, l_czD=0, l_reset=0
 
-export function toggleHue0Up(v){ t_h0Up = v }
-export function toggleHue0Down(v){ t_h0Dn = v }
-export function toggleHue1Up(v){ t_h1Up = v }
-export function toggleHue1Down(v){ t_h1Dn = v }
-export function togglePulseSpeedUp(v){ t_spUp = v }
-export function togglePulseSpeedDown(v){ t_spDn = v }
-export function togglePulseDepthUp(v){ t_deUp = v }
-export function togglePulseDepthDown(v){ t_deDn = v }
+export function toggleHue0Up(v){ t_h0U = v }
+export function toggleHue0Down(v){ t_h0D = v }
+export function toggleHue1Up(v){ t_h1U = v }
+export function toggleHue1Down(v){ t_h1D = v }
+export function toggleSpeedUp(v){ t_spU = v }
+export function toggleSpeedDown(v){ t_spD = v }
+export function toggleCrazinessUp(v){ t_czU = v }
+export function toggleCrazinessDown(v){ t_czD = v }
 export function toggleReset(v){ t_reset = v }
 
-export function gaugeHue0(){ return frac(hue0) }
-export function gaugeHue1(){ return frac(hue1) }
-export function gaugePulseSpeed(){ return pulseSpeed }
-export function gaugePulseDepth(){ return pulseDepth / 2 }
+export function gaugeHue0(){ return hue0 }
+export function gaugeHue1(){ return hue1 }
+export function gaugeSpeed(){ return 1 - pulseSpeed }
+export function gaugeCraziness(){ return craziness }
 
-function onFlip(v, last){ return (v != last) }
+function onFlip(v, last){ return (v > 0 && last == 0) }
+function frac(x) { return x - floor(x) }
 function clamp(v, min, max) { return v < min ? min : (v > max ? max : v) }
 
-var t1, t_bk
+var t_vortex, t_rainbow, t_glitch
 export function beforeRender(delta) {
-  // Process Toggles
-  if(onFlip(t_h0Up, l_h0Up)){ l_h0Up=t_h0Up; hue0 = frac(hue0 + 0.02) }
-  if(onFlip(t_h0Dn, l_h0Dn)){ l_h0Dn=t_h0Dn; hue0 = frac(hue0 - 0.02) }
-  if(onFlip(t_h1Up, l_h1Up)){ l_h1Up=t_h1Up; hue1 = frac(hue1 + 0.02) }
-  if(onFlip(t_h1Dn, l_h1Dn)){ l_h1Dn=t_h1Dn; hue1 = frac(hue1 - 0.02) }
-  
-  if(onFlip(t_spUp, l_spUp)){ l_spUp=t_spUp; pulseSpeed = clamp(pulseSpeed - 0.05, 0.02, 1.0) }
-  if(onFlip(t_spDn, l_spDn)){ l_spDn=t_spDn; pulseSpeed = clamp(pulseSpeed + 0.05, 0.02, 1.0) }
-  if(onFlip(t_deUp, l_deUp)){ l_deUp=t_deUp; pulseDepth = clamp(pulseDepth + 0.2, 0, 3.0) }
-  if(onFlip(t_deDn, l_deDn)){ l_deDn=t_deDn; pulseDepth = clamp(pulseDepth - 0.2, 0, 3.0) }
+  if(onFlip(t_h0U, l_h0U)) hue0 = frac(hue0 + 0.05)
+  if(onFlip(t_h0D, l_h0D)) hue0 = frac(hue0 - 0.05)
+  if(onFlip(t_h1U, l_h1U)) hue1 = frac(hue1 + 0.05)
+  if(onFlip(t_h1D, l_h1D)) hue1 = frac(hue1 - 0.05)
+  if(onFlip(t_spU, l_spU)) pulseSpeed = clamp(pulseSpeed - 0.02, 0.02, 0.5)
+  if(onFlip(t_spD, l_spD)) pulseSpeed = clamp(pulseSpeed + 0.02, 0.02, 0.5)
+  if(onFlip(t_czU, l_czU)) craziness = clamp(craziness + 0.1, 0, 1)
+  if(onFlip(t_czD, l_czD)) craziness = clamp(craziness - 0.1, 0, 1)
+  if(onFlip(t_reset, l_reset)){ hue0=DEF_h0; hue1=DEF_h1; pulseSpeed=DEF_speed; craziness=DEF_crazy }
 
-  if(onFlip(t_reset, l_reset)){ 
-    l_reset=t_reset; hue0=DEF_h0; hue1=DEF_h1;
-    pulseSpeed = DEF_speed; pulseDepth = DEF_depth;
-  }
+  l_h0U=t_h0U; l_h0D=t_h0D; l_h1U=t_h1U; l_h1D=t_h1D
+  l_spU=t_spU; l_spD=t_spD; l_czU=t_czU; l_czD=t_czD; l_reset=t_reset
 
-  t1 = time(0.8)    // Color drift
-  t_bk = time(pulseSpeed)
+  t_vortex = time(pulseSpeed)
+  t_rainbow = time(0.01)
+  t_glitch = time(0.03)
 }
 
 export function render(index) {
-  if (index >= N) { rgb(0,0,0); return }
-  
-  var skirtId = nodeId()
-  var h, s, v
+  var id = nodeId()
+  var x = coordsX[index]
+  var y = coordsY[index]
 
-  // Polar Coordinate Math
-  var dx = (coordsX[index] - 5.5) 
-  var dy = (coordsY[index] - 3.0)
-  var radius = sqrt(dx*dx + dy*dy) / 6 
-  var angle = atan2(dy, dx) / PI2     
+  // --- CRAZINESS: Spatial Distortion ---
+  var gNoise = wave(t_glitch + index * 0.15) * craziness
+  var r = sqrt(x*x + y*y) + (gNoise * 0.2)
+  var theta = atan2(y, x) / PI2 + (gNoise * 0.3 * craziness)
 
-  if (skirtId == 0) {
-    // NODE 0: NAVY (Steady Inward - Counter-Clockwise)
-    h = hue0 + (sin(t1 * PI2) * 0.03)
-    s = 1.0
-    // Spiral logic: (Time + Radius + Angle)
-    var spiralArms = sin(t_bk * PI2 + radius * 3.5 + angle)
-    v = 0.05 + (0.15 * pulseDepth) * spiralArms
-  } else {
-    // NODE 1: PINK (Fast Inward - Clockwise)
-    h = hue1 + (cos(t1 * PI2) * 0.03)
-    s = 0.8
-    // Spiral logic: (Faster Time + Radius - Angle)
-    var spiralArms = sin((t_bk * 0.5) * PI2 + radius * 5.0 - angle)
-    v = 0.06 + (0.18 * pulseDepth) * spiralArms
+  // Shatter effect: Breaks the spiral arms into segments
+  if (craziness > 0.5) {
+    var segments = 16 - (craziness * 12)
+    theta = floor(theta * segments) / segments
   }
 
-  hsv(frac(h), s, clamp(v, 0, 1))
+  // --- VORTEX LOGIC ---
+  // Node 0 spirals CW, Node 1 spirals CCW
+  var spiralPos = (id == 0) ? (t_vortex + r + theta) : (t_vortex - r - theta)
+  var pulse = pow(triangle(spiralPos), pulseWidth)
+
+  // --- COLOR ENGINE ---
+  var bgGlow = 0.3 + (craziness * 0.25 * sin(t_glitch * PI2 + index * 0.5))
+  var rainbowHue = frac(t_rainbow + spiralPos)
+  var baseHue = (id == 0) ? hue0 : hue1
+  
+  var h = mix(baseHue, rainbowHue, pulse)
+  var s = 1.0 - (pulse * 0.3 * craziness)
+  var v = bgGlow + (pulse * 0.7)
+  
+  // White glint at pulse peaks
+  if (pulse > 0.9) { s *= 0.5; v += 0.2 }
+
+  hsv(h, s, v * v)
 }
