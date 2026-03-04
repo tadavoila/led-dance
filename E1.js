@@ -2,10 +2,10 @@
 // Tops: Light Pink/Red | Skirts: Light Blue | 10s Breathing Pulse
 var N = 124
 
-// ---------- State Variables ----------
+// State Variables
 var vPulse = 1.0 // Global brightness pulse
 
-// ---------- Mapping (124 LEDs) ----------
+// LED Mapping (124 LEDs)
 var coordsY = array(N)
 var LED_MAP = [
   [ 0,  9, 10, 19, 20, 29, 30, 39], // Top (Rows 0-4)
@@ -22,6 +22,7 @@ var LED_MAP = [
   [40, 53, 54, 67, 68, 81, 82, 95,  96, 109, 110, 123]
 ]
 
+// Build Y-coordinate mapping (0-1) for each LED based on row position
 function buildMapping() {
   for (var r = 0; r < 12; r++) {
     var rowArr = LED_MAP[r]
@@ -35,22 +36,18 @@ function buildMapping() {
 }
 buildMapping()
 
+// Update breathing pulse brightness (10-second cycle)
 export function beforeRender(delta) {
-  // Breathing logic: Creates a slow, smooth oscillation
-  // time(0.15) provides roughly a 10-second cycle
-  // wave() returns 0.0 to 1.0, we scale it to 0.8 to 1.0
   vPulse = 0.8 + (0.2 * wave(time(0.15)))
 }
 
+// Render each LED: Tops = Light Pink/Red, Skirts = Light Blue
 export function render(index) {
   if (index >= N) return
   
-  // Section-based colors
   if (coordsY[index] < 0.45) {
-    // TOPS: Light Red / Pink
-    hsv(0.98, 0.8, vPulse)
+    hsv(0.98, 0.8, vPulse) // Tops
   } else {
-    // SKIRTS: Light Blue
-    hsv(0.60, 0.8, vPulse)
+    hsv(0.60, 0.8, vPulse) // Skirts
   }
 }
