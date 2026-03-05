@@ -10,7 +10,7 @@ silence = AudioSegment.silent(duration=30000)
 # Concatenate silence + original audio
 output = silence + audio
 
-# Export the result
-output.export("LED Dance - Updated with 30s silence.mp3", format="mp3")
+# Export the result with matching bitrate (180k)
+output.export("LED Dance - Updated with 30s silence.mp3", format="mp3", bitrate="192k")
 
 print("Done! Created 'LED Dance - Updated with 30s silence.mp3'")
