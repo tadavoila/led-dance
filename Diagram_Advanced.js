@@ -50,7 +50,7 @@ function draw() {
     } else if (isFrontTop) {
       r = 255; g = 140; b = 140;         // Lighter red (front top)
     } else if (isBackTop) {
-      r = 200; g = 70;  b = 70;          // Darker red (back top)
+      r = 230; g = 95;  b = 95;          // Darker red (back top) - BRIGHTENED slightly
     } else if (isFrontBottom) {
       r = 180; g = 220; b = 255;         // Lighter blue (front bottom)
     } else if (isBackBottom) {
@@ -68,14 +68,9 @@ function draw() {
     sphere(16);
 
     // --- DRAW LABEL (match color) ---
-    if (isSpecial) {
-      translate(35, -35, 0);
-      textSize(80); // MASSIVE special text
-    } else {
-      translate(24, -24, 0);
-      textSize(56); // Bigger normal text
-    }
-    
+    // Universal text positioning directly above the dot
+    translate(0, -45, 0); 
+    textSize(56);
     fill(r, g, b);
     text(i, 0, 0);
     pop();
@@ -89,7 +84,7 @@ function draw() {
         stroke(255, 255, 0);
         strokeWeight(4);
       } else {
-        stroke(255, 100);
+        stroke(255);
         strokeWeight(2);
       }
 
@@ -115,9 +110,10 @@ function draw() {
   // Right Battery Box
   push(); translate(rightBatPos.x, rightBatPos.y, rightBatPos.z);
   fill(50, 200, 50); box(120, 200, 60); 
-  fill(255); translate(-60, 150, 0); textSize(52); text("BATTERY\n(RIGHT)", 0,0); pop();
+  // Text to the right
+  fill(255); translate(60, 150, 0); textSize(52); text("BATTERY\n(RIGHT)", 0,0); pop();
 
-  // Pixelblaze Box (Label moved BELOW box: changed from -100 to 110)
+  // Pixelblaze Box
   push(); translate(pbPos.x, pbPos.y, pbPos.z);
   fill(150, 50, 255); box(100, 120, 30); 
   fill(255); translate(-60, 110, 0); textSize(52); text("PIXELBLAZE", 0,0); pop();
@@ -153,7 +149,10 @@ function draw() {
       box(50, 40, 40); 
       
       push();
-      fill(255); textSize(38); translate(0, 45, 0); text("FUSE", 0, 0);
+      fill(255, 120, 0); // FUSE TEXT IS NOW ORANGE
+      textSize(48); // BIGGER FUSE TEXT
+      translate(0, 50, 0); 
+      text("FUSE", 0, 0);
       pop();
     } 
     
@@ -168,57 +167,159 @@ function draw() {
   let pbEdgeX = pbPos.x - 50;
   let batEdgeX = rightBatPos.x - 60;
 
-  // DATA: We route the midpoints UP (negative Y) and OVER (positive Z) the ground wire.
+  // DATA (TOP WIRE) - Arc reduced (-400 in Y)
   let pbTo0_1 = createVector(pbEdgeX, pbPos.y, pbPos.z);
-  let pbTo0_2 = createVector(pbEdgeX - 150, pbPos.y - 120, pbPos.z + 200); 
-  let pbTo0_3 = createVector(v0.x + 150, v0.y - 120, v0.z + 200);
+  let pbTo0_2 = createVector(pbEdgeX - 200, pbPos.y - 400, pbPos.z + 50); 
+  let pbTo0_3 = createVector(v0.x + 200, v0.y - 400, v0.z + 50);
   
-  // POWER: Midpoints pushed further LEFT (batEdgeX - 150) so the curve clears the battery box quickly
+  // POWER (UNDERNEATH) - Flatter (-250 in Y) and pushes further FORWARD (+400 in Z)
   let batTo0_1 = createVector(batEdgeX, rightBatPos.y + 20, rightBatPos.z);
-  let batTo0_2 = createVector(batEdgeX - 150, rightBatPos.y + 150, rightBatPos.z);
-  let batTo0_3 = createVector(v0.x + 80, v0.y + 180, v0.z);
+  let batTo0_2 = createVector(batEdgeX - 200, rightBatPos.y - 250, rightBatPos.z + 400);
+  let batTo0_3 = createVector(v0.x + 100, v0.y - 250, v0.z + 400);
 
-  // -- DRAW GROUND FIRST (So it is visually underneath everything else) --
-  let gndMid = createVector(batEdgeX - 250, pbPos.y - 40, rightBatPos.z);
+  // -- GROUND (UNDERNEATH) --
+  // Ground merge pushes massively BACKWARDS (-800 in Z) 
+  let gndMid = createVector(batEdgeX - 250, pbPos.y - 50, rightBatPos.z - 800); 
   noFill(); stroke(colorGround); strokeWeight(5);
   
-  // PB Ground to Merge
-  bezier(pbEdgeX, pbPos.y + 40, pbPos.z,   pbEdgeX - 100, pbPos.y + 40, pbPos.z,   gndMid.x + 100, gndMid.y, gndMid.z,   gndMid.x, gndMid.y, gndMid.z);
-  // Battery Ground to Merge
-  bezier(batEdgeX, rightBatPos.y - 20, rightBatPos.z,   batEdgeX - 100, rightBatPos.y - 20, rightBatPos.z,   gndMid.x + 100, gndMid.y, gndMid.z,   gndMid.x, gndMid.y, gndMid.z);
+  // Pixelblaze to Merge
+  bezier(
+    pbEdgeX, pbPos.y + 40, pbPos.z,   
+    pbEdgeX - 100, pbPos.y + 40, pbPos.z - 400,   
+    gndMid.x + 100, gndMid.y, gndMid.z,   
+    gndMid.x, gndMid.y, gndMid.z
+  );
   
-  // Merge to Pixel 0
-  let gndTo0_2 = createVector(gndMid.x - 100, gndMid.y + 100, gndMid.z);
-  let gndTo0_3 = createVector(v0.x + 100, v0.y + 80, v0.z);
-  // Ground Label pushed further down line (t=0.20)
+  // Battery to Merge
+  bezier(
+    batEdgeX, rightBatPos.y - 20, rightBatPos.z,   
+    batEdgeX - 100, rightBatPos.y - 20, rightBatPos.z - 800,   
+    gndMid.x + 100, gndMid.y, gndMid.z,   
+    gndMid.x, gndMid.y, gndMid.z
+  );
+  
+  // Main GROUND wire continuing to Pixel 0 (Pushed back and flattened)
+  let gndTo0_2 = createVector(gndMid.x - 150, gndMid.y - 300, gndMid.z);
+  let gndTo0_3 = createVector(v0.x + 100, v0.y - 300, v0.z - 500);
   drawLabeledWire(gndMid, gndTo0_2, gndTo0_3, v0, colorGround, "GROUND", false, 0.20, 50);
 
+  // -- POWER --
+  // Shifted tPos slightly to 0.35 to avoid the gray wire intersection on the right
+  drawLabeledWire(batTo0_1, batTo0_2, batTo0_3, v0, colorPower, "POWER", true, 0.35, -60);
 
-  // -- DRAW POWER SECOND --
-  // Power Label & Fuse pushed further left (t=0.20) to clear the battery entirely
-  drawLabeledWire(batTo0_1, batTo0_2, batTo0_3, v0, colorPower, "POWER", true, 0.20, -60);
-
-
-  // -- DRAW DATA LAST (Arcs over the top) --
-  // Data label pushed down slightly to align with the new curve (t=0.18)
+  // -- DATA --
   drawLabeledWire(pbTo0_1, pbTo0_2, pbTo0_3, v0, colorData, "DATA", false, 0.18, -40);
 
 
-  // 3. LEFT SIDE -> PIXEL 123 (Routing around the BACK)
+  // 3. LEFT SIDE -> PIXEL 123
   let backZ = -3.0 * scaleF; 
   let lBatEdgeX = leftBatPos.x + 60;
   
+  // Left side arcs -> Sweep DOWN (+Y) and UNDERNEATH the hem to cleanly avoid pixel 40
   let leftBatTo123_1 = createVector(lBatEdgeX, leftBatPos.y, leftBatPos.z);
-  let leftBatTo123_2 = createVector(0, leftBatPos.y, backZ);
-  let leftBatTo123_3 = createVector(v123.x, v123.y, backZ);
-  
-  drawLabeledWire(leftBatTo123_1, leftBatTo123_2, leftBatTo123_3, v123, colorPower, "POWER", true, 0.08, -60);
+  let leftBatTo123_2 = createVector(lBatEdgeX - 400, leftBatPos.y + 400, v123.z - 200);
+  let leftBatTo123_3 = createVector(v123.x - 300, v123.y + 300, v123.z - 200);
+  // Shifted tPos to 0.80 to push the fuse and "POWER" text FAR to the right, next to the battery 
+  drawLabeledWire(leftBatTo123_1, leftBatTo123_2, leftBatTo123_3, v123, colorPower, "POWER", true, 0.40, -60);
   
   let leftBatTo123_G1 = createVector(lBatEdgeX, leftBatPos.y + 40, leftBatPos.z);
-  let leftBatTo123_G2 = createVector(0, leftBatPos.y + 40, backZ);
-  let leftBatTo123_G3 = createVector(v123.x, v123.y + 40, backZ);
+  let leftBatTo123_G2 = createVector(lBatEdgeX - 500, leftBatPos.y + 500, v123.z - 300);
+  let leftBatTo123_G3 = createVector(v123.x - 400, v123.y + 400, v123.z - 300);
+  drawLabeledWire(leftBatTo123_G1, leftBatTo123_G2, leftBatTo123_G3, v123, colorGround, "GROUND", false, 0.25, 50); 
+
+  // ==========================================
+  // --- GENERAL DIAGRAM LABELS (DOTTED ARROWS) ---
+  // ==========================================
+
+  // Custom function to draw a dotted 3D arrow
+  function drawDashedArrow(p1, p2, col) {
+    push();
+    stroke(col);
+    strokeWeight(5);
+    let d = p1.dist(p2);
+    let dir = p5.Vector.sub(p2, p1).normalize();
+    let dash = 25;
+    let gap = 20;
+    
+    // Draw dashed line
+    for(let i = 0; i < d - 40; i += dash + gap) { 
+      let start = p5.Vector.add(p1, p5.Vector.mult(dir, i));
+      let end = p5.Vector.add(p1, p5.Vector.mult(dir, min(i + dash, d - 40)));
+      line(start.x, start.y, start.z, end.x, end.y, end.z);
+    }
+    
+    // Draw 3D Cross-shaped Arrowhead 
+    let up = createVector(0, 1, 0);
+    if (abs(dir.y) > 0.99) up = createVector(1, 0, 0); // Avoid gimbal lock
+    let right = p5.Vector.cross(dir, up).normalize();
+    up = p5.Vector.cross(right, dir).normalize();
+    
+    let headLen = 40;
+    let headW = 20;
+    let base = p5.Vector.sub(p2, p5.Vector.mult(dir, headLen));
+    
+    let h1 = p5.Vector.add(base, p5.Vector.mult(right, headW));
+    let h2 = p5.Vector.sub(base, p5.Vector.mult(right, headW));
+    let h3 = p5.Vector.add(base, p5.Vector.mult(up, headW));
+    let h4 = p5.Vector.sub(base, p5.Vector.mult(up, headW));
+    
+    line(p2.x, p2.y, p2.z, h1.x, h1.y, h1.z);
+    line(p2.x, p2.y, p2.z, h2.x, h2.y, h2.z);
+    line(p2.x, p2.y, p2.z, h3.x, h3.y, h3.z);
+    line(p2.x, p2.y, p2.z, h4.x, h4.y, h4.z);
+    pop();
+  }
+
+  // "Back of the Costume"
+  push();
+  let backTextPos = createVector(-1.2 * scaleF, 0.2 * scaleF, 1.2 * scaleF);
+  let backTarget = createVector(-0.5 * scaleF, 0.8 * scaleF, 1.0 * scaleF); 
   
-  drawLabeledWire(leftBatTo123_G1, leftBatTo123_G2, leftBatTo123_G3, v123, colorGround, "GROUND", false, 0.12, 50);
+  drawDashedArrow(backTextPos, backTarget, color(255, 150));
+  
+  translate(backTextPos.x, backTextPos.y, backTextPos.z);
+  fill(255); noStroke(); textSize(52);
+  text("BACK OF\nTHE COSTUME", 0, 70); 
+  pop();
+
+  // "Front of the Costume"
+  push();
+  let frontTextPos = createVector(1.2 * scaleF, -2.2 * scaleF, -1.5 * scaleF);
+  let frontTarget = createVector(0.5 * scaleF, -1.5 * scaleF, -1.0 * scaleF); 
+  
+  drawDashedArrow(frontTextPos, frontTarget, color(255, 150));
+  
+  translate(frontTextPos.x, frontTextPos.y, frontTextPos.z);
+  fill(255); noStroke(); textSize(52);
+  text("FRONT OF\nTHE COSTUME", 0, -70); 
+  pop();
+
+  // "TOP" Label 
+  push();
+  let topTextPos = createVector(-1.6 * scaleF, -2.1 * scaleF, 0); 
+  let topTarget = createVector(-0.9 * scaleF, -1.9 * scaleF, 0); 
+  
+  drawDashedArrow(topTextPos, topTarget, color(255, 140, 140, 150));
+  
+  translate(topTextPos.x, topTextPos.y, topTextPos.z);
+  fill(255, 140, 140); noStroke(); textSize(64);
+  text("TOP", -80, 0); 
+  pop();
+
+  // "SKIRT" Label 
+  push();
+  // Moved far to the right (X=1.75) but matching the Y/Z position of "Back of Costume"
+  let skirtTextPos = createVector(1.75 * scaleF, 0.2 * scaleF, 1.2 * scaleF); 
+  // Target pointing left, toward the right edge of the skirt
+  let skirtTarget = createVector(1.0 * scaleF, 0.2 * scaleF, 1.0 * scaleF); 
+  
+  drawDashedArrow(skirtTextPos, skirtTarget, color(180, 220, 255, 150));
+  
+  translate(skirtTextPos.x, skirtTextPos.y, skirtTextPos.z);
+  fill(180, 220, 255); noStroke(); textSize(64);
+  text("SKIRT", 0, 0); // Removed the horizontal offset to keep it centered over the arrow
+  pop();
+
 }
 
 function generateMap(count) {
