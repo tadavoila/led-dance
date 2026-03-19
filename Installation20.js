@@ -114,7 +114,7 @@ export function beforeRender(delta) {
   b1_tMove = frac(b1_tMove + (delta / ((0.055 - (b1_warmthCtl * 0.02)) * 32768)))
   b2_tMove += (delta * 0.002 * b2_speed)
   if (b2_tMove > PI2 * 2) b2_tMove -= (PI2 * 2)
-  b3_tMove += s(delta * 0.001)
+  b3_tMove += (delta * 0.001)
   if (b3_tMove > PI2 * 2) b3_tMove -= (PI2 * 2)
   b5_blendFactor = clamp01((triangle(time(0.2)) - 0.2) * 1.66)
   if (timer % 7.5 < 0.1 && b5_shimmerStrength < 0.1) b5_shimmerStrength = 1.0
